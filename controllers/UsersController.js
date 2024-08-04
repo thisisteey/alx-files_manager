@@ -1,5 +1,6 @@
 import Queue from 'bull/lib/queue';
 import sha1 from 'sha1';
+import { ObjectId } from 'mongodb';
 /* eslint-disable import/no-named-as-default */
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
@@ -34,7 +35,7 @@ class UsersController {
   }
 
   static async getMe(req, res) {
-    const token = req.headers['x-token'];
+    const token = req.header('X-token') || null;
     if (!token) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
@@ -47,14 +48,14 @@ class UsersController {
     }
 
     const userCollection = await dbClient.usersCollection();
-    const user = await userCollection.findOne({ _id: userId });
+    const user = await userCollection.findOne({ _id: ObjectId(userId) });
 
     if (!user) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    res.status(200).json({ email: user.email, id: user._id.toString() });
+    res.status(200).json({ id: userId, email: user.email });
   }
 }
 
