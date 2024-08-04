@@ -1,9 +1,10 @@
 import Queue from 'bull/lib/queue';
-/* eslint-disable import/no-named-as-default */
 import sha1 from 'sha1';
+/* eslint-disable import/no-named-as-default */
 import dbClient from '../utils/db';
+import redisClient from '../utils/redis';
 
-const userEmailQueue = new Queue('email sending');
+const userQueue = new Queue('email sending');
 
 class UsersController {
   static async postNew(req, res) {
@@ -26,10 +27,34 @@ class UsersController {
     }
     const insertData = await (await dbClient.usersCollection())
       .insertOne({ email, password: sha1(password) });
-    const newUserId = insertData.insertedId.toString();
+    const userId = insertData.insertedId.toString();
 
-    userEmailQueue.add({ newUserId });
-    res.status(201).json({ email, id: newUserId });
+    userQueue.add({ userId });
+    res.status(201).json({ email, id: userId });
+  }
+
+  static async getMe(req, res) {
+    const token = req.headers['x-token'];
+    if (!token) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const userId = await redisClient.get(`auth_${token}`);
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const userCollection = await dbClient.usersCollection();
+    const user = await userCollection.findOne({ _id: userId });
+
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    res.status(200).json({ email: user.email, id: user._id.toString() });
   }
 }
 
