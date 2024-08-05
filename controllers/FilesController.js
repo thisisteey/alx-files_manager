@@ -105,6 +105,67 @@ class FilesController {
       FilesController.saveFileToDisk(res, fullFilePath, fileData, newFile);
     }
   }
+
+  static async getShow(req, res) {
+    const fileId = req.params.id;
+    const user = await FilesController.getUserFromToken(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const fileCollection = await dbClient.filesCollection();
+    const fileData = await fileCollection.findOne({
+      _id: ObjectId(fileId), userId: user._id,
+    });
+
+    if (!fileData) {
+      res.status(404).json({ error: 'Not found' });
+    } else {
+      fileData.id = fileData._id;
+      delete fileData._id;
+      delete fileData.localPath;
+      res.status(200).json(fileData);
+    }
+  }
+
+  static async getIndex(req, res) {
+    const user = await FilesController.getUserFromToken(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const {
+      parentId, page,
+    } = req.query;
+    const fileCollection = await dbClient.filesCollection();
+
+    const itemsPerPage = 20;
+    const currPage = page || 1;
+    const skipCount = (currPage - 1) * itemsPerPage;
+
+    let qryFilter;
+    if (!parentId) {
+      qryFilter = { userId: user._id.toString() };
+    } else {
+      qryFilter = { userId: user._id.toString(), parentId };
+    }
+
+    const fileResult = await fileCollection.aggregate([
+      { $match: qryFilter },
+      { $skip: skipCount },
+      { $limit: itemsPerPage },
+    ]).toArray();
+
+    const fmtdFiles = fileResult.map((file) => {
+      const newFile = { ...file, id: file._id };
+      delete newFile._id;
+      delete newFile.localPath;
+      return newFile;
+    });
+    res.status(200).json(fmtdFiles);
+  }
 }
 
 export default FilesController;
