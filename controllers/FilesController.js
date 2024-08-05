@@ -166,6 +166,39 @@ class FilesController {
     });
     res.status(200).json(fmtdFiles);
   }
+
+  static async updateFileVis(req, res, visStats) {
+    const fileId = req.params.id;
+    const user = await FilesController.getUserFromToken(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const fileCollection = await dbClient.filesCollection();
+    const fileInfo = await fileCollection.findOne({
+      userId: user._id.toString(),
+      _id: ObjectId(fileId),
+    });
+    if (!fileInfo) {
+      res.status(404).json({ error: 'Not found' });
+    } else {
+      const visUpdate = { $set: { isPublic: visStats } };
+      await fileCollection.updateOne({ _id: ObjectId(fileId) }, visUpdate);
+      const updFileVis = await fileCollection.findOne({ _id: ObjectId(fileId) });
+      updFileVis.id = updFileVis._id;
+      delete updFileVis._id;
+      res.status(200).json(updFileVis);
+    }
+  }
+
+  static putPublish(req, res) {
+    FilesController.updateFileVis(req, res, true);
+  }
+
+  static putUnpublish(req, res) {
+    FilesController.updateFileVis(req, res, false);
+  }
 }
 
 export default FilesController;

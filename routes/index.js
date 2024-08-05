@@ -16,6 +16,8 @@ const configRoutes = (api) => {
   api.post('/files', FilesController.postUpload);
   api.get('/files/:id', FilesController.getShow);
   api.get('/files', FilesController.getIndex);
+  api.put('/files/:id/publish', FilesController.putPublish);
+  api.put('/files/:id/unpublish', FilesController.putUnpublish);
 };
 
 export default configRoutes;
