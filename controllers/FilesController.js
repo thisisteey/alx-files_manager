@@ -3,10 +3,18 @@ import { env } from 'process';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import mime from 'mime-types';
+import Queue from 'bull';
 import { ObjectId } from 'mongodb';
 /* eslint-disable import/no-named-as-default */
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+
+const fileQueue = new Queue('fileQueue', {
+  redis: {
+    host: '127.0.0.1',
+    port: 6379,
+  },
+});
 
 class FilesController {
   static async getUserFromToken(req) {
@@ -36,6 +44,10 @@ class FilesController {
 
     delete respFile._id;
     delete respFile.localPath;
+
+    if (respFile.type === 'image') {
+      fileQueue.add({ userId: respFile.userId, fileId: respFile.id });
+    }
     res.status(201).json(respFile);
   }
 
