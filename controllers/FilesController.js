@@ -116,7 +116,8 @@ class FilesController {
 
     const fileCollection = await dbClient.filesCollection();
     const fileData = await fileCollection.findOne({
-      _id: ObjectId(fileId), userId: user._id.toString(),
+      _id: ObjectId(fileId),
+      userId: user._id.toString(),
     });
 
     if (!fileData) {
