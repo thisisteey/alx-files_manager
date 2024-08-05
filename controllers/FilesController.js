@@ -107,7 +107,9 @@ class FilesController {
   }
 
   static async getShow(req, res) {
-    const fileId = req.params.id;
+    const {
+      id,
+    } = req.params;
     const user = await FilesController.getUserFromToken(req);
     if (!user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -116,7 +118,8 @@ class FilesController {
 
     const fileCollection = await dbClient.filesCollection();
     const fileData = await fileCollection.findOne({
-      _id: ObjectId(fileId), userId: user._id,
+      _id: ObjectId(id),
+      userId: user._id.toString(),
     });
 
     if (!fileData) {
