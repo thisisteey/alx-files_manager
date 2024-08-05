@@ -2,6 +2,7 @@ import path from 'path';
 import { env } from 'process';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
+import mime from 'mime-types';
 import { ObjectId } from 'mongodb';
 /* eslint-disable import/no-named-as-default */
 import dbClient from '../utils/db';
@@ -199,6 +200,46 @@ class FilesController {
 
   static putUnpublish(req, res) {
     FilesController.updateFileVis(req, res, false);
+  }
+
+  static async getFile(req, res) {
+    const fileId = req.params.id;
+    const { size } = req.query;
+    if (!fileId) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+
+    const user = await FilesController.getUserFromToken(req);
+    const fileCollection = await dbClient.filesCollection();
+    const fileDits = await fileCollection.findOne({ _id: ObjectId(fileId) });
+    if (!fileDits) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    if (!user && fileDits.isPublic === false) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    if (fileDits.isPublic === false && user && fileDits.userId !== user._id.toString()) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    if (fileDits.type === 'folder') {
+      res.status(400).json({ error: 'A folder doesn\'t have content' });
+      return;
+    }
+
+    const targetPath = size && fileDits.type === 'image'
+      ? `${fileDits.localPath}_${size}`
+      : fileDits.localPath;
+
+    if (!(await FilesController.pathExists(targetPath))) {
+      res.status(404).json({ error: 'Not found' });
+    } else {
+      res.set('Content-Type', mime.lookup(fileDits.name));
+      res.status(200).sendFile(targetPath);
+    }
   }
 }
 
